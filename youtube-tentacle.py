@@ -1,3 +1,5 @@
+# TODO add functionality to check if a youtube video has been deleted
+# TODO add functionality to upload youtube videos
 import os
 import sys
 import pickle
