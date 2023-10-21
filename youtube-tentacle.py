@@ -3,16 +3,46 @@
 import os
 import sys
 import pickle
+from pathlib import Path
+import tempfile
 
 import google_auth_oauthlib.flow
 import googleapiclient.discovery
 import googleapiclient.errors
 
+from oauth2client.client import flow_from_clientsecrets
+
 home = os.getenv("HOME")
-client_secrets_file = f"{home}/KEYS/client_secret_939544863452-t9npirab3oq40raqok1kbnj4dfksv8ng.apps.googleusercontent.com.json"
+project_dir = Path(__file__).parent
+client_secrets_file = project_dir/"client_secret_939544863452-t9npirab3oq40raqok1kbnj4dfksv8ng.apps.googleusercontent.com.json"
+#f"{home}/KEYS/client_secret_939544863452-t9npirab3oq40raqok1kbnj4dfksv8ng.apps.googleusercontent.com.json"
+
+YOUTUBE_UPLOAD_SCOPE = "https://www.googleapis.com/auth/youtube.upload"
+MISSING_CLIENT_SECRETS_MESSAGE = """
+WARNING: Please configure OAuth 2.0
+
+To make this sample run you will need to populate the client_secrets.json file
+found at:
+
+   %s
+
+with information from the API Console
+https://console.cloud.google.com/
+
+For more information about the client_secrets.json file format, please visit:
+https://developers.google.com/api-client-library/python/guide/aaa_client_secrets
+""" % os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                   client_secrets_file))
+
+
+flow = flow_from_clientsecrets(client_secrets_file,
+    scope=YOUTUBE_UPLOAD_SCOPE,
+    message=MISSING_CLIENT_SECRETS_MESSAGE)
+
+exit(0)
 
 scopes = ["https://www.googleapis.com/auth/youtube.force-ssl"]
-credentials_path = f"{home}/KEYS/google_credentials.pickle"
+credentials_path = Path()/".youtube-tentacle-credentials"
 
 def main():
     # Disable OAuthlib's HTTPS verification when running locally.
@@ -22,7 +52,10 @@ def main():
     api_service_name = "youtube"
     api_version = "v3"
 
+
     # Get credentials and create an API client
+    dir = tempfile.gettempdir()
+    credentials_path = Path(dir)/".youtube-tentacle-credentials"
     if sys.argv[1] == "--auth":
         flow = google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file(
             client_secrets_file, scopes)
