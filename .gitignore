@@ -1,3 +1,7 @@
 credentials.pickle
 upload.py-oauth2.json
 client_secrets.json
+credentials_youtube_force-ssl.pickle
+credentials_upload.pickle
+upload-video.py-oauth2.json
+credentials_youtube_upload.pickle

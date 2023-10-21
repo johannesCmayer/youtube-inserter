@@ -1,6 +1,8 @@
 #!/usr/bin/python
 
 import http.client as httplib
+from pathlib import Path
+import pickle
 import httplib2
 import os
 import random
@@ -73,17 +75,22 @@ https://developers.google.com/api-client-library/python/guide/aaa_client_secrets
 
 VALID_PRIVACY_STATUSES = ("public", "private", "unlisted")
 
+credential_save_path = Path("credentials_upload.pickle")
+
 
 def get_authenticated_service(args):
-  flow = flow_from_clientsecrets(CLIENT_SECRETS_FILE,
-    scope=YOUTUBE_UPLOAD_SCOPE,
-    message=MISSING_CLIENT_SECRETS_MESSAGE)
+  if not credential_save_path.exists() or args.auth:
+    flow = flow_from_clientsecrets(CLIENT_SECRETS_FILE,
+      scope=YOUTUBE_UPLOAD_SCOPE,
+      message=MISSING_CLIENT_SECRETS_MESSAGE)
 
-  storage = Storage("%s-oauth2.json" % sys.argv[0])
-  credentials = storage.get()
+    storage = Storage("%s-oauth2.json" % sys.argv[0])
+    credentials = storage.get()
+    if credentials is None or credentials.invalid:
+      credentials = run_flow(flow, storage, args)
+    pickle.dump(credentials, credential_save_path.open("wb"))
+  credentials = pickle.load(credential_save_path.open("rb"))
 
-  if credentials is None or credentials.invalid:
-    credentials = run_flow(flow, storage, args)
 
   return build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION,
     http=credentials.authorize(httplib2.Http()))
@@ -126,7 +133,6 @@ def initialize_upload(youtube, options):
   api_service_name = "youtube"
   api_version = "v3"
 
-  const_file = '/home/johannes/data/rip/testing/nest/test_start_file_2_FIN.vtt'
   scopes = ["https://www.googleapis.com/auth/youtube.force-ssl"]
   flow = google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file(
           CLIENT_SECRETS_FILE, scopes)
@@ -135,11 +141,6 @@ def initialize_upload(youtube, options):
             api_service_name, api_version, credentials=credentials)
 
   resumable_upload(insert_request)
-  caption_request = youtube.captions().insert(
-    part="snippet",
-    media_body=MediaFileUpload(const_file, chunksize=-1, resumable=True)    
-    )
-  caption_request.execute()
 
 # This method implements an exponential backoff strategy to resume a
 # failed upload.
@@ -153,7 +154,7 @@ def resumable_upload(insert_request):
       status, response = insert_request.next_chunk()
       if response is not None:
         if 'id' in response:
-          print("Video id '%s' was successfully uploaded." % response['id'])
+          print(response['id'])
         else:
           exit("The upload failed with an unexpected response: %s" % response)
     except HttpError as e:
@@ -188,6 +189,7 @@ if __name__ == '__main__':
     default="")
   argparser.add_argument("--privacyStatus", choices=VALID_PRIVACY_STATUSES,
     default=VALID_PRIVACY_STATUSES[0], help="Video privacy status.")
+  argparser.add_argument("--auth", action='store_true', help="Authenticate with youtube.")
   args = argparser.parse_args()
 
   if not os.path.exists(args.file):
